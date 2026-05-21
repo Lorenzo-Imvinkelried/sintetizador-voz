@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VozSintética Studio - Sintetizador de Voz Premium</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top, #1e152a 0%, #0b0712 100%);
+            min-height: 100vh;
+        }
+
+        .title-glow {
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 10px rgba(168, 85, 247, 0.6), 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(22, 16, 36, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-card {
+            background: rgba(30, 24, 48, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            background: rgba(45, 36, 72, 0.6);
+            border-color: rgba(168, 85, 247, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .glass-card.selected {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: #a855f7;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        /* Custom range input styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            background: rgba(255, 255, 255, 0.1);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -5px;
+            background-color: #a855f7;
+            border: 2px solid #0b0712;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #a855f7;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]:active::-webkit-slider-thumb {
+            transform: scale(1.3);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.6);
+        }
+
+        /* Character speaking animation */
+        @keyframes bounce-slow {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-8px) scale(1.05); }
+        }
+        .speaking-avatar {
+            animation: bounce-slow 0.4s infinite ease-in-out;
+            filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.8));
+        }
+    </style>
+</head>
+
+<body class="text-gray-100 flex items-center justify-center p-4 min-h-screen">
+
+    <div class="glass-panel w-full max-w-5xl rounded-3xl shadow-2xl p-6 md:p-8 flex flex-col gap-6">
+        
+        <!-- HEADER: Title & Eerie Avatar with Wave -->
+        <div class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-6">
+            <div class="text-center md:text-left">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 title-glow tracking-wider">
+                    VOZSINTÉTICA STUDIO
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Crea voces graciosas, serias y efectos únicos en español</p>
+            </div>
+            
+            <div class="flex items-center gap-6 bg-slate-950/50 px-6 py-3 rounded-2xl border border-slate-800/80 w-full md:w-auto justify-center">
+                <!-- Avatar -->
+                <div id="emoji" class="text-5xl select-none transition-all duration-300 transform">🤖</div>
+                <!-- Mini Canvas Wave -->
+                <div class="flex flex-col gap-1 w-32 md:w-44">
+                    <canvas id="visualizer" width="180" height="40" class="w-full h-10 rounded-lg bg-slate-900/30"></canvas>
+                    <span class="text-[10px] text-center text-slate-500 font-mono tracking-widest uppercase" id="estado-voz">En espera</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN LAYOUT: Controls on Left, Presets on Right -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- COLUMN 1: Inputs & Sound Controls (7 cols) -->
+            <div class="lg:col-span-7 flex flex-col gap-5">
+                
+                <!-- Text input with pause inserter -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Texto a Sintetizar</label>
+                        <button id="btn-insertar-pausa" class="text-xs bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-800/60 px-2.5 py-1 rounded-lg transition-all duration-300 flex items-center gap-1 font-mono hover:scale-[1.02] active:scale-[0.98]">
+                            <span>⏱️ Insertar Pausa (1s)</span>
+                        </button>
+                    </div>
+                    <textarea id="texto"
+                        class="w-full p-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none transition-all duration-300 placeholder-slate-600 shadow-inner text-sm md:text-base leading-relaxed"
+                        rows="4" placeholder="Escribe algo gracioso o serio...">Tung tung tung [pausa:0.8] god los bendice, [pausa:1.2] ¡suerte en el parcial de administración!</textarea>
+                </div>
+
+                <!-- Slang & Voice Selector -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Elegir Voz</label>
+                            <!-- Info Icon for Help Modal -->
+                            <button id="btn-ayuda-voces" class="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-sans transition-colors" title="Ver cómo instalar más voces">
+                                <span>¿Más voces?</span> ℹ️
+                            </button>
+                        </div>
+                        <select id="voces"
+                            class="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-gray-200 focus:ring-2 focus:ring-purple-500 outline-none text-sm cursor-pointer transition-all duration-300"></select>
+                        
+                        <label class="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                            <input type="checkbox" id="ver-extranjeras" class="rounded bg-slate-900 border-slate-800 text-purple-600 focus:ring-purple-500 w-3.5 h-3.5">
+                            <span class="text-xs text-slate-400 hover:text-slate-300">Mostrar idiomas extranjeros</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 font-mono">Sazón Regional (Jerga)</label>
+                        <select id="jerga-select"
+                            class="w-full p-3 bg-slate-900 border border-slate-800 rounded-xl text-gray-200 focus:ring-2 focus:ring-purple-500 outline-none text-sm cursor-pointer transition-all duration-300">
+                            <option value="none">Sin modismos (Limpio)</option>
+                            <option value="ar">🇦🇷 Argentina (Che, boludo, posta)</option>
+                            <option value="es">🇪🇸 España (Tío, joder, hostia)</option>
+                            <option value="mx">🇲🇽 México (Wey, órale, carnal)</option>
+                            <option value="co">🇨🇴 Colombia (Parce, pues, a lo bien)</option>
+                            <option value="cl">🇨🇱 Chile (Po, weón, cachai)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sliders -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Tono (Pitch)</span>
+                            <span id="pitch-val" class="text-sm text-purple-400 font-bold font-mono">1.0</span>
+                        </div>
+                        <input type="range" id="pitch" min="0.5" max="2.0" step="0.05" value="1.0" class="w-full">
+                        <div class="flex justify-between text-[10px] text-slate-600 mt-1 font-mono">
+                            <span>MONSTRUO (0.5)</span>
+                            <span>NORMAL</span>
+                            <span>ARDILLA (2.0)</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Velocidad (Rate)</span>
+                            <span id="rate-val" class="text-sm text-purple-400 font-bold font-mono">1.0</span>
+                        </div>
+                        <input type="range" id="rate" min="0.5" max="3.0" step="0.05" value="1.0" class="w-full">
+                        <div class="flex justify-between text-[10px] text-slate-600 mt-1 font-mono">
+                            <span>LENTO (0.5)</span>
+                            <span>NORMAL</span>
+                            <span>RÁPIDO (3.0)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Effects and Background Loops -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 font-mono">Efecto Especial Activo</label>
+                        <select id="efecto-manual"
+                            class="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-gray-200 focus:ring-1 focus:ring-purple-500 outline-none text-xs cursor-pointer">
+                            <option value="none">Ninguno (Voz normal)</option>
+                            <option value="robot">🤖 Robot Metálico</option>
+                            <option value="borracho">🥴 Tío Ebrio</option>
+                            <option value="estadio">📣 Eco de Estadio</option>
+                            <option value="alien">👽 Vibrato Marciano</option>
+                            <option value="tartamudeo">💬 Tartamudeo leve</option>
+                            <option value="chismosa">💅 Modo Chismosa</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 font-mono">Ritmo de Fondo Procedimental</label>
+                        <select id="beat-select"
+                            class="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-gray-200 focus:ring-1 focus:ring-purple-500 outline-none text-xs cursor-pointer">
+                            <option value="none">Silencio absoluto</option>
+                            <option value="rap">🎤 Base de Rap Retro</option>
+                            <option value="tension">🛸 Atmósfera de Tensión</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- YouTube / MP3 Background Music Integration Panel -->
+                <div class="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="usar-youtube" class="rounded bg-slate-900 border-slate-800 text-purple-600 focus:ring-purple-500 w-4 h-4">
+                            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">🎵 Música de Fondo</span>
+                        </label>
+                        <span id="yt-status" class="text-[10px] text-slate-500 font-mono">Cargando API...</span>
+                    </div>
+                    
+                    <div id="yt-controls-container" class="hidden flex flex-col gap-3 transition-all duration-300">
+                        <div class="flex gap-2">
+                            <input type="text" id="yt-url" 
+                                class="flex-1 p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-gray-200 focus:ring-1 focus:ring-purple-500 outline-none placeholder-slate-600" 
+                                placeholder="Enlace de YouTube o MP3 directo (ej. https://...)"
+                                value="https://www.youtube.com/watch?v=uJ_1HMAGb4k">
+                            <button id="btn-yt-preview" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg border border-slate-700 text-slate-300 transition-colors duration-200">
+                                ▶️ Probar
+                            </button>
+                        </div>
+                        
+                        <!-- Quick test audio buttons for restricted sessions -->
+                        <div class="flex flex-wrap gap-2 text-[10px] text-slate-400">
+                            <span>¿Sin YouTube? Carga estos audios de prueba:</span>
+                            <button type="button" class="text-purple-400 hover:underline" onclick="cargarAudioPrueba('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3')">⚡ Beat Sintetizador</button>
+                            <button type="button" class="text-purple-400 hover:underline" onclick="cargarAudioPrueba('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3')">⚡ Beat Relajante</button>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] text-slate-400 uppercase font-mono">Volumen de la Música</span>
+                                <span id="yt-vol-val" class="text-xs text-purple-400 font-mono font-bold">40%</span>
+                            </div>
+                            <input type="range" id="yt-vol" min="0" max="100" value="40" class="w-full accent-purple-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-4 mt-2">
+                    <button id="btn-hablar"
+                        class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] text-lg shadow-[0_0_20px_rgba(168,85,247,0.3)] flex items-center justify-center gap-3">
+                        <span class="text-xl">Hablar</span> 🗣️
+                    </button>
+                    <button id="btn-detener"
+                        class="bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-red-400 font-bold py-4 px-5 rounded-2xl transition-all duration-300 border border-slate-800 hover:border-red-900 shadow-md flex items-center justify-center"
+                        title="Detener voz y ritmo">
+                        <span class="text-xl">Detener</span> ⏹️
+                    </button>
+                </div>
+            </div>
+
+            <!-- COLUMN 2: Presets & Info Panel (5 cols) -->
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">Presets de Personajes</span>
+                
+                <!-- Presets Grid -->
+                <div class="grid grid-cols-2 gap-3" id="presets-container">
+                    <!-- Presets will be populated dynamically -->
+                </div>
+
+                <!-- Voice Installation Guide Panel (Collapsible/Helpful) -->
+                <div id="guia-voces" class="hidden bg-slate-950/80 border border-slate-800 rounded-2xl p-4 transition-all duration-300 text-xs">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                        <span class="font-bold text-purple-400 font-mono">CÓMO AGREGAR MÁS VOCES</span>
+                        <button id="btn-cerrar-guia" class="text-slate-500 hover:text-slate-300 text-sm font-bold">×</button>
+                    </div>
+                    <ul class="space-y-2 text-slate-400 leading-normal list-disc list-inside">
+                        <li><strong class="text-slate-300">En Windows:</strong> Ve a <code class="bg-slate-900 px-1 py-0.5 rounded text-pink-400">Configuración &gt; Hora e idioma &gt; Voz</code> y haz clic en <strong class="text-slate-300">"Agregar voces"</strong>. Instala paquetes de otros países en español (ej. México o Argentina) y reinicia el navegador.</li>
+                        <li><strong class="text-slate-300">En Chrome:</strong> Google provee voces gratuitas por internet automáticamente en segundo plano. Asegúrate de tener conexión.</li>
+                        <li><strong class="text-slate-300">En Móviles:</strong> Instala la app "Servicios de voz de Google" en Android o activa voces de accesibilidad en iOS para habilitar acentos excelentes.</li>
+                    </ul>
+                </div>
+            </div>
+            
+        </div>
+
+    </div>
+
+    <!-- Hidden off-screen YouTube Player container to avoid browser blocks -->
+    <div class="absolute -top-[9999px] -left-[9999px]">
+        <div id="yt-player-placeholder"></div>
+    </div>
+
+    <!-- Script Block -->
+    <script>
+        const synth = window.speechSynthesis;
+        const vocesSelect = document.getElementById('voces');
+        const showForeignCheckbox = document.getElementById('ver-extranjeras');
+        const pitchInput = document.getElementById('pitch');
+        const pitchVal = document.getElementById('pitch-val');
+        const rateInput = document.getElementById('rate');
+        const rateVal = document.getElementById('rate-val');
+        const textoInput = document.getElementById('texto');
+        const btnHablar = document.getElementById('btn-hablar');
+        const btnDetener = document.getElementById('btn-detener');
+        const emoji = document.getElementById('emoji');
+        const visualizer = document.getElementById('visualizer');
+        const estadoVoz = document.getElementById('estado-voz');
+        const jergaSelect = document.getElementById('jerga-select');
+        const efectoManualSelect = document.getElementById('efecto-manual');
+        const beatSelect = document.getElementById('beat-select');
+        
+        // YouTube & Local Audio Elements
+        const usarYtCheckbox = document.getElementById('usar-youtube');
+        const ytControlsContainer = document.getElementById('yt-controls-container');
+        const ytUrlInput = document.getElementById('yt-url');
+        const btnYtPreview = document.getElementById('btn-yt-preview');
+        const ytVolInput = document.getElementById('yt-vol');
+        const ytVolVal = document.getElementById('yt-vol-val');
+        const ytStatus = document.getElementById('yt-status');
+
+        // Help panel controls
+        const btnAyudaVoces = document.getElementById('btn-ayuda-voces');
+        const btnCerrarGuia = document.getElementById('btn-cerrar-guia');
+        const guiaVoces = document.getElementById('guia-voces');
+        
+        btnAyudaVoces.addEventListener('click', () => guiaVoces.classList.toggle('hidden'));
+        btnCerrarGuia.addEventListener('click', () => guiaVoces.classList.add('hidden'));
+
+        let vocesDisponibles = [];
+        let presetSeleccionado = null;
+
+        // Visualizer settings
+        const ctx = visualizer.getContext('2d');
+        let visualizerAnimId = null;
+        let visualizerRunning = false;
+
+        // Sequencer & Pauses state variables
+        let pauseTimeout = null;
+        let sequencePlaying = false;
+        let currentSequenceIndex = 0;
+        let activeSequence = [];
+        let activeVoz = null;
+        let activePitch = 1.0;
+        let activeRate = 1.0;
+        let activeEffect = 'none';
+
+        // Definition of Presets
+        const PRESETS = {
+            robot: {
+                emoji: '🤖',
+                pitch: 1.0,
+                rate: 1.0,
+                bgBeat: 'none',
+                effect: 'robot',
+                label: 'Robot Extremo',
+                desc: 'Sonido metálico rígido'
+            },
+            ardilla: {
+                emoji: '🐿️',
+                pitch: 2.0,
+                rate: 1.6,
+                bgBeat: 'none',
+                effect: 'none',
+                label: 'Ardillita',
+                desc: 'Voz súper aguda e híper'
+            },
+            monstruo: {
+                emoji: '🧟',
+                pitch: 0.5,
+                rate: 0.7,
+                bgBeat: 'none',
+                effect: 'none',
+                label: 'Monstruo',
+                desc: 'Voz profunda y pesada'
+            },
+            borracho: {
+                emoji: '🥴',
+                pitch: 0.85,
+                rate: 0.8,
+                bgBeat: 'none',
+                effect: 'borracho',
+                label: 'Tío Ebrio',
+                desc: 'Modulación arrastrada'
+            },
+            rapero: {
+                emoji: '🎤',
+                pitch: 1.15,
+                rate: 1.35,
+                bgBeat: 'rap',
+                effect: 'none',
+                label: 'Rapero MC',
+                desc: 'Sincronizado con un beat'
+            },
+            estadio: {
+                emoji: '📣',
+                pitch: 1.0,
+                rate: 1.15,
+                bgBeat: 'none',
+                effect: 'estadio',
+                label: 'Eco de Estadio',
+                desc: 'Anunciador con eco gigante'
+            },
+            alien: {
+                emoji: '👽',
+                pitch: 1.5,
+                rate: 1.1,
+                bgBeat: 'tension',
+                effect: 'alien',
+                label: 'Invasor Alien',
+                desc: 'Tono marciano vibrante'
+            },
+            serio: {
+                emoji: '🤵',
+                pitch: 1.0,
+                rate: 0.9,
+                bgBeat: 'none',
+                effect: 'none',
+                label: 'Locutor Serio',
+                desc: 'Voz limpia, pausada y formal'
+            },
+            chismosa: {
+                emoji: '💅',
+                pitch: 1.3,
+                rate: 1.7,
+                bgBeat: 'none',
+                effect: 'chismosa',
+                label: 'La Chismosa',
+                desc: '¡Rápido y chisme a morir!'
+            }
+        };
+
+        // Procedural Audio Synthesizer Beat Engine
+        const SynthBeat = {
+            audioCtx: null,
+            intervalId: null,
+            isPlaying: false,
+            bpm: 100,
+            gainNode: null,
+            tensionOsc: null,
+            tensionOsc2: null,
+            
+            init() {
+                if (!this.audioCtx) {
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.gainNode = this.audioCtx.createGain();
+                    this.gainNode.gain.value = 0.12; // Moderate background volume
+                    this.gainNode.connect(this.audioCtx.destination);
+                }
+            },
+            
+            start(type) {
+                this.init();
+                if (this.isPlaying) this.stop();
+                
+                this.isPlaying = true;
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+                
+                let step = 0;
+                this.bpm = type === 'rap' ? 92 : 80;
+                const stepTime = 60 / this.bpm / 2; // 8th notes
+                
+                const playLoop = () => {
+                    if (!this.isPlaying) return;
+                    const time = this.audioCtx.currentTime;
+                    
+                    if (type === 'rap') {
+                        this.playRapStep(step, time);
+                    } else if (type === 'tension') {
+                        this.playTensionStep(step, time);
+                    }
+                    
+                    step = (step + 1) % 16;
+                    this.intervalId = setTimeout(playLoop, stepTime * 1000);
+                };
+                
+                playLoop();
+            },
+            
+            stop() {
+                this.isPlaying = false;
+                if (this.intervalId) {
+                    clearTimeout(this.intervalId);
+                    this.intervalId = null;
+                }
+                if (this.tensionOsc) {
+                    try { this.tensionOsc.stop(); } catch(e) {}
+                    this.tensionOsc = null;
+                }
+                if (this.tensionOsc2) {
+                    try { this.tensionOsc2.stop(); } catch(e) {}
+                    this.tensionOsc2 = null;
+                }
+            },
+            
+            playKick(time) {
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(this.gainNode);
+                
+                osc.frequency.setValueAtTime(110, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.18);
+                
+                gain.gain.setValueAtTime(1.0, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.18);
+                
+                osc.start(time);
+                osc.stop(time + 0.19);
+            },
+            
+            playSnare(time) {
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, time);
+                osc.connect(gain);
+                gain.connect(this.gainNode);
+                
+                gain.gain.setValueAtTime(0.3, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
+                
+                const oscNoise = this.audioCtx.createOscillator();
+                const gainNoise = this.audioCtx.createGain();
+                oscNoise.type = 'sine';
+                oscNoise.frequency.setValueAtTime(1200, time);
+                oscNoise.connect(gainNoise);
+                gainNoise.connect(this.gainNode);
+                gainNoise.gain.setValueAtTime(0.12, time);
+                gainNoise.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+                
+                osc.start(time);
+                oscNoise.start(time);
+                osc.stop(time + 0.16);
+                oscNoise.stop(time + 0.09);
+            },
+            
+            playHihat(time) {
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(9500, time);
+                osc.connect(gain);
+                gain.connect(this.gainNode);
+                
+                gain.gain.setValueAtTime(0.1, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.04);
+                
+                osc.start(time);
+                osc.stop(time + 0.05);
+            },
+            
+            playBass(freq, time, duration) {
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, time);
+                
+                const filter = this.audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(250, time);
+                
+                osc.connect(gain);
+                gain.connect(filter);
+                filter.connect(this.gainNode);
+                
+                gain.gain.setValueAtTime(0.35, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                
+                osc.start(time);
+                osc.stop(time + duration + 0.01);
+            },
+            
+            playRapStep(step, time) {
+                const kicks = [0, 8, 10];
+                const snares = [4, 12];
+                const hats = [2, 6, 14, 15];
+                
+                if (kicks.includes(step)) this.playKick(time);
+                if (snares.includes(step)) this.playSnare(time);
+                if (hats.includes(step)) this.playHihat(time);
+                
+                if (step === 0) this.playBass(55.00, time, 0.4);
+                if (step === 4) this.playBass(65.41, time, 0.4);
+                if (step === 8) this.playBass(58.27, time, 0.3);
+                if (step === 10) this.playBass(49.00, time, 0.3);
+                if (step === 12) this.playBass(43.65, time, 0.4);
+            },
+            
+            playTensionStep(step, time) {
+                if (step === 0) {
+                    if (!this.tensionOsc) {
+                        this.tensionOsc = this.audioCtx.createOscillator();
+                        const g = this.audioCtx.createGain();
+                        this.tensionOsc.type = 'sine';
+                        this.tensionOsc.frequency.setValueAtTime(65.41, time);
+                        this.tensionOsc.connect(g);
+                        g.connect(this.gainNode);
+                        g.gain.setValueAtTime(0.4, time);
+                        this.tensionOsc.start(time);
+                    }
+                    if (!this.tensionOsc2) {
+                        this.tensionOsc2 = this.audioCtx.createOscillator();
+                        const g2 = this.audioCtx.createGain();
+                        this.tensionOsc2.type = 'sine';
+                        this.tensionOsc2.frequency.setValueAtTime(92.50, time);
+                        this.tensionOsc2.connect(g2);
+                        g2.connect(this.gainNode);
+                        g2.gain.setValueAtTime(0.2, time);
+                        this.tensionOsc2.start(time);
+                    }
+                }
+                
+                if (step === 4) {
+                    this.playBass(130.81, time, 1.2);
+                }
+                if (step === 12) {
+                    this.playBass(123.47, time, 1.2);
+                }
+            }
+        };
+
+        // DUAL AUDIO ENGINE: YOUTUBE PLAYER & HTML5 AUDIO PLAYER
+        let ytPlayer = null;
+        let ytPlayerReady = false;
+        let ytMusicPlaying = false; // Tracks if YouTube is actively playing
+        
+        const localAudioPlayer = new Audio();
+        localAudioPlayer.crossOrigin = "anonymous";
+        let localAudioPlaying = false; // Tracks if direct MP3 audio is actively playing
+
+        function onPlayerReady(event) {
+            ytPlayerReady = true;
+            ytStatus.textContent = 'Listo (YouTube y Audio)';
+            ytStatus.className = 'text-[10px] text-green-400 font-mono font-bold';
+        }
+
+        function onPlayerStateChange(event) {
+            switch (event.data) {
+                case YT.PlayerState.UNSTARTED:
+                    ytStatus.textContent = 'Cargando...';
+                    ytStatus.className = 'text-[10px] text-yellow-500 font-mono';
+                    break;
+                case YT.PlayerState.PLAYING:
+                    ytStatus.textContent = 'Reproduciendo (YT)';
+                    ytStatus.className = 'text-[10px] text-green-400 font-mono font-bold';
+                    break;
+                case YT.PlayerState.PAUSED:
+                    ytStatus.textContent = 'Pausado (YT)';
+                    ytStatus.className = 'text-[10px] text-yellow-500 font-mono';
+                    break;
+                case YT.PlayerState.ENDED:
+                    ytStatus.textContent = 'Finalizado';
+                    ytStatus.className = 'text-[10px] text-slate-500 font-mono';
+                    ytMusicPlaying = false;
+                    actualizarYtPreviewButton();
+                    break;
+                case YT.PlayerState.BUFFERING:
+                    ytStatus.textContent = 'Cargando buffer...';
+                    ytStatus.className = 'text-[10px] text-yellow-500 font-mono';
+                    break;
+                case YT.PlayerState.CUED:
+                    ytStatus.textContent = 'Listo para reproducir';
+                    ytStatus.className = 'text-[10px] text-purple-400 font-mono';
+                    break;
+            }
+        }
+
+        // Declare YouTube callback first
+        window.onYouTubeIframeAPIReady = function() {
+            ytPlayer = new YT.Player('yt-player-placeholder', {
+                host: 'https://www.youtube.com', // Fix for file://
+                height: '0',
+                width: '0',
+                videoId: '',
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'fs': 0,
+                    'rel': 0
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        // Load YouTube script
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        tag.onerror = function() {
+            // Safe fallback if YouTube is blocked in their session
+            ytStatus.textContent = 'Solo Directo / MP3 (YouTube Bloqueado)';
+            ytStatus.className = 'text-[10px] text-yellow-500 font-mono font-bold';
+        };
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function obtenerYoutubeId(url) {
+            if (!url) return null;
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : url.trim().length === 11 ? url.trim() : null;
+        }
+
+        function esUrlYoutube(url) {
+            if (!url) return false;
+            return url.includes('youtube.com') || url.includes('youtu.be') || (url.trim().length === 11 && !url.includes('.mp3'));
+        }
+
+        // UNIFIED AUDIO ACTIONS
+
+        function playMusic(url, ducked = false) {
+            const volBase = parseInt(ytVolInput.value) / 100;
+            const vol = ducked ? volBase * 0.15 : volBase;
+
+            if (esUrlYoutube(url)) {
+                if (!ytPlayerReady) {
+                    alert('El reproductor de YouTube no está listo o está bloqueado en tu sesión. ¡Prueba haciendo clic en uno de los enlaces de audio directo (MP3) de abajo!');
+                    return false;
+                }
+                const videoId = obtenerYoutubeId(url);
+                if (videoId) {
+                    // Turn off local audio if playing
+                    localAudioPlayer.pause();
+                    localAudioPlaying = false;
+
+                    ytPlayer.cueVideoById(videoId);
+                    setTimeout(() => {
+                        ytPlayer.setVolume(vol * 100);
+                        ytPlayer.playVideo();
+                        ytMusicPlaying = true;
+                        actualizarYtPreviewButton();
+                    }, 150);
+                    return true;
+                }
+            } else {
+                // Play as direct audio (MP3/WAV/etc.)
+                detenerMusicaYt();
+                
+                try {
+                    localAudioPlayer.src = url;
+                    localAudioPlayer.volume = vol;
+                    localAudioPlayer.loop = true;
+                    localAudioPlayer.play().then(() => {
+                        localAudioPlaying = true;
+                        ytStatus.textContent = 'Reproduciendo (Audio MP3)';
+                        ytStatus.className = 'text-[10px] text-green-400 font-mono font-bold';
+                        actualizarYtPreviewButton();
+                    }).catch(err => {
+                        console.error(err);
+                        alert('No se pudo cargar el archivo de audio. Verifica que el enlace sea directo (termine en .mp3) y que tu red permita el acceso.');
+                    });
+                    return true;
+                } catch(e) {
+                    alert('Error cargando el archivo de sonido.');
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        function pauseMusic() {
+            detenerMusicaYt();
+            localAudioPlayer.pause();
+            localAudioPlaying = false;
+            
+            // Restore status depending on YouTube state
+            if (ytPlayerReady) {
+                ytStatus.textContent = 'Listo (YouTube y Audio)';
+                ytStatus.className = 'text-[10px] text-green-400 font-mono font-bold';
+            } else {
+                ytStatus.textContent = 'Solo Directo / MP3 (YouTube Bloqueado)';
+                ytStatus.className = 'text-[10px] text-yellow-500 font-mono font-bold';
+            }
+            actualizarYtPreviewButton();
+        }
+
+        function setMusicVolume(percentage) {
+            if (ytPlayer && ytPlayerReady && ytMusicPlaying) {
+                ytPlayer.setVolume(percentage * 100);
+            }
+            if (localAudioPlaying) {
+                localAudioPlayer.volume = percentage;
+            }
+        }
+
+        // Toggle background music inputs
+        usarYtCheckbox.addEventListener('change', () => {
+            if (usarYtCheckbox.checked) {
+                ytControlsContainer.classList.remove('hidden');
+                beatSelect.value = 'none';
+                beatSelect.disabled = true;
+            } else {
+                ytControlsContainer.classList.add('hidden');
+                beatSelect.disabled = false;
+                pauseMusic();
+            }
+            deseleccionarPresets();
+        });
+
+        // Volume slider action
+        ytVolInput.addEventListener('input', () => {
+            ytVolVal.textContent = `${ytVolInput.value}%`;
+            const vol = parseInt(ytVolInput.value) / 100;
+            if (usarYtCheckbox.checked) {
+                if (ytPlayer && ytPlayerReady && ytMusicPlaying) {
+                    ytPlayer.setVolume(vol * 100);
+                }
+                if (localAudioPlaying) {
+                    localAudioPlayer.volume = vol;
+                }
+            }
+        });
+
+        function actualizarYtPreviewButton() {
+            if (ytMusicPlaying || localAudioPlaying) {
+                btnYtPreview.innerHTML = '⏸️ Pausar';
+                btnYtPreview.className = 'px-3 py-2 bg-red-950/80 hover:bg-red-900 border border-red-800/60 text-xs font-bold rounded-lg text-red-300 transition-colors duration-200';
+            } else {
+                btnYtPreview.innerHTML = '▶️ Probar';
+                btnYtPreview.className = 'px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg border border-slate-700 text-slate-300 transition-colors duration-200';
+            }
+        }
+
+        btnYtPreview.addEventListener('click', () => {
+            const url = ytUrlInput.value.trim();
+            
+            if (ytMusicPlaying || localAudioPlaying) {
+                pauseMusic();
+            } else {
+                if (!url) {
+                    alert('Por favor, ingresa una URL de YouTube o un enlace directo a un archivo de audio (.mp3).');
+                    return;
+                }
+                SynthBeat.stop();
+                playMusic(url, false); // Play at normal/full volume for preview
+            }
+        });
+
+        function detenerMusicaYt() {
+            if (ytPlayer && ytPlayerReady) {
+                ytPlayer.pauseVideo();
+            }
+            ytMusicPlaying = false;
+            actualizarYtPreviewButton();
+        }
+
+        // Global function called by onclick of test buttons
+        window.cargarAudioPrueba = function(url) {
+            ytUrlInput.value = url;
+            // Activate music block and show controls
+            usarYtCheckbox.checked = true;
+            ytControlsContainer.classList.remove('hidden');
+            beatSelect.value = 'none';
+            beatSelect.disabled = true;
+            deseleccionarPresets();
+
+            // Auto-play the test audio
+            setTimeout(() => {
+                SynthBeat.stop();
+                playMusic(url, false);
+            }, 100);
+        };
+
+        // INSERT PAUSE AT CURSOR
+        const btnInsertarPausa = document.getElementById('btn-insertar-pausa');
+        btnInsertarPausa.addEventListener('click', () => {
+            const startPos = textoInput.selectionStart;
+            const endPos = textoInput.selectionEnd;
+            const text = textoInput.value;
+            const pauseTag = " [pausa:1.0] ";
+            
+            textoInput.value = text.substring(0, startPos) + pauseTag + text.substring(endPos);
+            
+            textoInput.focus();
+            const newCursorPos = startPos + pauseTag.length;
+            textoInput.selectionStart = newCursorPos;
+            textoInput.selectionEnd = newCursorPos;
+        });
+
+        // Flags Mapping
+        function getFlag(lang) {
+            const l = lang.toLowerCase();
+            if (l.includes('es-es')) return '🇪🇸';
+            if (l.includes('es-mx')) return '🇲🇽';
+            if (l.includes('es-ar')) return '🇦🇷';
+            if (l.includes('es-co')) return '🇨🇴';
+            if (l.includes('es-cl')) return '🇨🇱';
+            if (l.includes('es-us')) return '🇺🇸';
+            if (l.includes('es-ve')) return '🇻🇪';
+            if (l.includes('es-pe')) return '🇵🇪';
+            if (l.includes('es-uy')) return '🇺🇾';
+            if (l.includes('es')) return '🇪🇸';
+            if (l.includes('en-us')) return '🇺🇸';
+            if (l.includes('en-gb')) return '🇬🇧';
+            if (l.includes('it-it')) return '🇮🇹';
+            if (l.includes('fr-fr')) return '🇫🇷';
+            if (l.includes('de-de')) return '🇩🇪';
+            if (l.includes('pt-br')) return '🇧🇷';
+            return '🌐';
+        }
+
+        // Load voices and group them
+        function cargarVoces() {
+            vocesDisponibles = synth.getVoices();
+            vocesSelect.innerHTML = '';
+
+            const spanishVoices = vocesDisponibles.filter(v => v.lang.toLowerCase().startsWith('es'));
+            const otherVoices = vocesDisponibles.filter(v => !v.lang.toLowerCase().startsWith('es'));
+
+            // Group: Spanish
+            const groupSpanish = document.createElement('optgroup');
+            groupSpanish.label = 'Voces en Español (Recomendadas)';
+            
+            spanishVoices.forEach(voz => {
+                const option = document.createElement('option');
+                const flag = getFlag(voz.lang);
+                option.textContent = `${flag} ${voz.name} (${voz.lang})`;
+                option.setAttribute('data-lang', voz.lang);
+                option.setAttribute('data-name', voz.name);
+                groupSpanish.appendChild(option);
+            });
+            vocesSelect.appendChild(groupSpanish);
+
+            // Group: Others (if enabled)
+            if (showForeignCheckbox.checked && otherVoices.length > 0) {
+                const groupOthers = document.createElement('optgroup');
+                groupOthers.label = 'Otros Idiomas';
+                
+                otherVoices.forEach(voz => {
+                    const option = document.createElement('option');
+                    const flag = getFlag(voz.lang);
+                    option.textContent = `${flag} ${voz.name} (${voz.lang})`;
+                    option.setAttribute('data-lang', voz.lang);
+                    option.setAttribute('data-name', voz.name);
+                    groupOthers.appendChild(option);
+                });
+                vocesSelect.appendChild(groupOthers);
+            }
+
+            if (spanishVoices.length > 0 && vocesSelect.selectedIndex === -1) {
+                vocesSelect.selectedIndex = 0;
+            }
+        }
+
+        cargarVoces();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = cargarVoces;
+        }
+
+        // Dropdown focus fallback to force voices loading if empty
+        vocesSelect.addEventListener('focus', () => {
+            if (vocesSelect.options.length === 0) {
+                cargarVoces();
+            }
+        });
+
+        showForeignCheckbox.addEventListener('change', cargarVoces);
+
+        // Update slider values
+        pitchInput.addEventListener('input', () => {
+            pitchVal.textContent = pitchInput.value;
+            deseleccionarPresets();
+        });
+        
+        rateInput.addEventListener('input', () => {
+            rateVal.textContent = rateInput.value;
+            deseleccionarPresets();
+        });
+
+        // Set controls when manually changing effect or beat
+        efectoManualSelect.addEventListener('change', () => deseleccionarPresets());
+        beatSelect.addEventListener('change', () => deseleccionarPresets());
+
+        // Preset card rendering
+        const presetsContainer = document.getElementById('presets-container');
+        function renderPresets() {
+            presetsContainer.innerHTML = '';
+            Object.keys(PRESETS).forEach(key => {
+                const preset = PRESETS[key];
+                
+                const card = document.createElement('button');
+                card.className = `glass-card p-3 rounded-xl flex flex-col items-center text-center justify-center gap-1 cursor-pointer select-none transition-all`;
+                card.id = `preset-${key}`;
+                card.innerHTML = `
+                    <span class="text-3xl">${preset.emoji}</span>
+                    <span class="text-xs font-bold text-white font-mono">${preset.label}</span>
+                    <span class="text-[10px] text-slate-500 leading-none">${preset.desc}</span>
+                `;
+                
+                card.addEventListener('click', () => aplicarPreset(key));
+                presetsContainer.appendChild(card);
+            });
+        }
+        renderPresets();
+
+        function aplicarPreset(key) {
+            const p = PRESETS[key];
+            presetSeleccionado = key;
+            
+            // Highlight selected card
+            document.querySelectorAll('.glass-card').forEach(c => c.classList.remove('selected'));
+            const cardEl = document.getElementById(`preset-${key}`);
+            if (cardEl) cardEl.classList.add('selected');
+            
+            // Adjust slider values
+            pitchInput.value = p.pitch;
+            pitchVal.textContent = p.pitch;
+            
+            rateInput.value = p.rate;
+            rateVal.textContent = p.rate;
+            
+            // Update Selects
+            efectoManualSelect.value = p.effect;
+            
+            if (usarYtCheckbox.checked) {
+                beatSelect.value = 'none';
+            } else {
+                beatSelect.value = p.bgBeat;
+            }
+            
+            // Update Avatar
+            emoji.textContent = p.emoji;
+        }
+
+        function deseleccionarPresets() {
+            presetSeleccionado = null;
+            document.querySelectorAll('.glass-card').forEach(c => c.classList.remove('selected'));
+        }
+
+        // TEXT PREPROCESSING AND EFFECTS ALGORITHMS
+
+        function aplicarTartamudeo(texto) {
+            return texto.split(' ').map(word => {
+                if (word.length > 3 && Math.random() > 0.45) {
+                    const cleanWord = word.replace(/^[¡¿"\s]+/, '');
+                    const prefix = word.substring(0, word.indexOf(cleanWord));
+                    const firstChar = cleanWord.charAt(0);
+                    if (/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(firstChar)) {
+                        return `${prefix}${firstChar}-${firstChar.toLowerCase()}-${cleanWord}`;
+                    }
+                }
+                return word;
+            }).join(' ');
+        }
+
+        function aplicarBorracho(texto) {
+            const slurs = ["... ehh... ", "... *hip*... ", "... este... ", "... ¿qué? ... "];
+            return texto.split(' ').map((word, i) => {
+                let newWord = word;
+                if (Math.random() > 0.7) {
+                    newWord = newWord.replace(/([aeiouáéíóúAEIOUÁÉÍÓÚ])/g, '$1$1$1');
+                }
+                if (i > 0 && i % 4 === 0 && Math.random() > 0.5) {
+                    const slur = slurs[Math.floor(Math.random() * slurs.length)];
+                    return slur + newWord;
+                }
+                return newWord;
+            }).join(' ');
+        }
+
+        function aplicarRobot(texto) {
+            const words = texto.split(' ');
+            const modified = words.map((w, index) => {
+                if (index > 0 && index % 4 === 0) {
+                    return w + '... bip...';
+                }
+                if (index > 0 && index % 7 === 0) {
+                    return w + '... bop...';
+                }
+                return w;
+            }).join(' ');
+            return "Secuencia mecánica: " + modified + "... proceso completado.";
+        }
+
+        function aplicarChismosa(texto) {
+            const intros = ["¡No sabés! Resulta que ", "¡Escuchá, gorda! Me dijeron que ", "Ay por favor, no te imaginás: "];
+            const outros = [", o sea... ¡te lo juro por mi vida!", ", ¡ay me muero de la intriga!", ", pero callate la boca, no digas nada."];
+            const intro = intros[Math.floor(Math.random() * intros.length)];
+            const outro = outros[Math.floor(Math.random() * outros.length)];
+            return intro + texto.trim() + outro;
+        }
+
+        function aplicarJerga(texto, pais) {
+            if (!pais || pais === 'none') return texto;
+            
+            const jergas = {
+                ar: {
+                    starts: ["Che, mirá, ", "Escuchame una cosa, ", "La verdad que "],
+                    ends: [", boludo.", ", ¿viste?", ", posta.", ", de una."]
+                },
+                es: {
+                    starts: ["Vale, chaval, ", "Hombre, ", "A ver, tío, "],
+                    ends: [", joder.", ", flipas.", ", ¿sabes?", ", ¡hostia!"]
+                },
+                mx: {
+                    starts: ["¡Órale! Oye, ", "A ver, güey, ", "Híjole, "],
+                    ends: [", ¿no?", ", ¡no mames!", ", carnal.", ", chido."]
+                },
+                co: {
+                    starts: ["Oiga, parce, ", "Vea pues, ", "A lo bien, "],
+                    ends: [", ¿sí o qué?", ", pues.", ", con toda.", ", parce."]
+                },
+                cl: {
+                    starts: ["Oye, cachai que ", "Mira po, "],
+                    ends: [" po.", " po, weón.", ", ¿cachai?", ", la dura."]
+                }
+            };
+            
+            const j = jergas[pais];
+            if (!j) return texto;
+            
+            const start = j.starts[Math.floor(Math.random() * j.starts.length)];
+            const end = j.ends[Math.floor(Math.random() * j.ends.length)];
+            
+            let cleanText = texto.trim();
+            const lastChar = cleanText.slice(-1);
+            if (['.', '!', '?'].includes(lastChar)) {
+                cleanText = cleanText.slice(0, -1);
+            }
+            
+            return start + cleanText + end;
+        }
+
+        // CANVAS WAVE VISUALIZER ENGINE
+        
+        function initVisualizer() {
+            ctx.clearRect(0, 0, visualizer.width, visualizer.height);
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+            ctx.moveTo(0, visualizer.height / 2);
+            ctx.lineTo(visualizer.width, visualizer.height / 2);
+            ctx.stroke();
+        }
+        initVisualizer();
+
+        function startVisualizer() {
+            if (visualizerRunning) return;
+            visualizerRunning = true;
+            estadoVoz.textContent = "Hablando...";
+            estadoVoz.classList.remove('text-slate-500');
+            estadoVoz.classList.add('text-purple-400', 'font-bold');
+
+            function draw() {
+                if (!visualizerRunning) return;
+
+                ctx.clearRect(0, 0, visualizer.width, visualizer.height);
+                const time = Date.now() * 0.015;
+                const midY = visualizer.height / 2;
+
+                ctx.beginPath();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(168, 85, 247, 0.85)';
+                for (let x = 0; x < visualizer.width; x++) {
+                    const progress = x / visualizer.width;
+                    const envelope = Math.sin(progress * Math.PI);
+                    const y = midY + 
+                        Math.sin(x * 0.08 + time) * 12 * envelope * Math.sin(time * 0.6) +
+                        Math.cos(x * 0.04 - time * 0.8) * 4 * envelope;
+                    
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+                for (let x = 0; x < visualizer.width; x++) {
+                    const progress = x / visualizer.width;
+                    const envelope = Math.sin(progress * Math.PI);
+                    const y = midY + 
+                        Math.sin(x * 0.05 - time * 1.3) * 8 * envelope * Math.cos(time * 0.4) +
+                        Math.sin(x * 0.12 + time * 1.6) * 3 * envelope;
+                    
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                visualizerAnimId = requestAnimationFrame(draw);
+            }
+
+            draw();
+        }
+
+        function stopVisualizer() {
+            visualizerRunning = false;
+            if (visualizerAnimId) {
+                cancelAnimationFrame(visualizerAnimId);
+                visualizerAnimId = null;
+            }
+            estadoVoz.textContent = "En espera";
+            estadoVoz.classList.remove('text-purple-400', 'font-bold');
+            estadoVoz.classList.add('text-slate-500');
+            initVisualizer();
+        }
+
+        // STOP LOGIC
+        function detenerTodo() {
+            sequencePlaying = false;
+            synth.cancel();
+            
+            if (pauseTimeout) {
+                clearTimeout(pauseTimeout);
+                pauseTimeout = null;
+            }
+
+            // Stop procedural sound
+            SynthBeat.stop();
+
+            // Stop background music (both YouTube & Direct MP3)
+            if (usarYtCheckbox.checked) {
+                pauseMusic();
+            }
+
+            stopVisualizer();
+            emoji.classList.remove('speaking-avatar');
+        }
+
+        btnDetener.addEventListener('click', detenerTodo);
+
+        // TEXT PAUSE PARSER
+        function parsearPausas(texto) {
+            const sequence = [];
+            const regex = /\[pausa:(\d+(?:\.\d+)?)\]/gi;
+            let lastIndex = 0;
+            let match;
+            
+            while ((match = regex.exec(texto)) !== null) {
+                const textBefore = texto.substring(lastIndex, match.index).trim();
+                if (textBefore) {
+                    sequence.push({ type: 'speech', text: textBefore });
+                }
+                sequence.push({ type: 'pause', duration: parseFloat(match[1]) * 1000 });
+                lastIndex = regex.lastIndex;
+            }
+            
+            const textRemaining = texto.substring(lastIndex).trim();
+            if (textRemaining) {
+                sequence.push({ type: 'speech', text: textRemaining });
+            }
+            
+            return sequence;
+        }
+
+        // SEQUENCER ENGINE FOR PAUSES & UTTERANCES
+        function ejecutarSiguientePaso() {
+            if (!sequencePlaying) return;
+
+            if (currentSequenceIndex >= activeSequence.length) {
+                detenerTodo();
+                return;
+            }
+
+            const step = activeSequence[currentSequenceIndex];
+            currentSequenceIndex++;
+
+            if (step.type === 'pause') {
+                estadoVoz.textContent = `Pausa (${step.duration / 1000}s)...`;
+                emoji.classList.remove('speaking-avatar');
+                stopVisualizer();
+
+                // Audio Ducking: Restore music volume to full during pauses
+                if (usarYtCheckbox.checked) {
+                    setMusicVolume(parseInt(ytVolInput.value) / 100);
+                }
+
+                pauseTimeout = setTimeout(() => {
+                    if (sequencePlaying) {
+                        emoji.classList.add('speaking-avatar');
+                        startVisualizer();
+                        
+                        // Audio Ducking: Lower music volume again during speech
+                        if (usarYtCheckbox.checked) {
+                            setMusicVolume((parseInt(ytVolInput.value) / 100) * 0.15);
+                        }
+                        
+                        setTimeout(ejecutarSiguientePaso, 50);
+                    }
+                }, step.duration);
+
+            } else if (step.type === 'speech') {
+                const utterancesToPlay = [];
+                let textoBloque = step.text;
+
+                // Apply text processing effects to this block
+                if (activeEffect === 'robot') {
+                    textoBloque = aplicarRobot(textoBloque);
+                } else if (activeEffect === 'borracho') {
+                    textoBloque = aplicarBorracho(textoBloque);
+                } else if (activeEffect === 'tartamudeo') {
+                    textoBloque = aplicarTartamudeo(textoBloque);
+                } else if (activeEffect === 'chismosa') {
+                    textoBloque = aplicarChismosa(textoBloque);
+                }
+
+                if (activeEffect === 'estadio') {
+                    // Stadium Echo simulation
+                    const clauses = textoBloque.split(/[,.!?;\n\:]+/).map(c => c.trim()).filter(c => c.length > 0);
+                    clauses.forEach(clause => {
+                        utterancesToPlay.push({
+                            text: clause,
+                            pitch: activePitch,
+                            rate: activeRate,
+                            volume: 1.0
+                        });
+
+                        const words = clause.split(/\s+/).filter(w => w.length > 0);
+                        if (words.length > 0) {
+                            const lastWord = words[words.length - 1].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"¡¿]/g,"");
+                            if (lastWord.length > 2) {
+                                utterancesToPlay.push({
+                                    text: `... ${lastWord}`,
+                                    pitch: activePitch * 0.95,
+                                    rate: activeRate * 0.85,
+                                    volume: 0.45
+                                });
+                                utterancesToPlay.push({
+                                    text: `... ${lastWord}`,
+                                    pitch: activePitch * 0.9,
+                                    rate: activeRate * 0.75,
+                                    volume: 0.18
+                                });
+                            }
+                        }
+                    });
+                } else if (activeEffect === 'alien') {
+                    // Alien vibrato modulation word-by-word
+                    const words = textoBloque.split(/\s+/).filter(w => w.length > 0);
+                    words.forEach((word, index) => {
+                        const modulatedPitch = index % 2 === 0 ? activePitch * 1.25 : activePitch * 0.75;
+                        utterancesToPlay.push({
+                            text: word,
+                            pitch: Math.min(2.0, Math.max(0.5, modulatedPitch)),
+                            rate: activeRate,
+                            volume: 1.0
+                        });
+                    });
+                } else {
+                    // Standard speech
+                    utterancesToPlay.push({
+                        text: textoBloque,
+                        pitch: activePitch,
+                        rate: activeRate,
+                        volume: 1.0
+                    });
+                }
+
+                // Guard against empty structures
+                if (utterancesToPlay.length === 0) {
+                    setTimeout(ejecutarSiguientePaso, 50);
+                    return;
+                }
+
+                // Sequence speech items inside the block
+                let subIndex = 0;
+                function reproducirSiguienteSub() {
+                    if (!sequencePlaying) return;
+
+                    if (subIndex >= utterancesToPlay.length) {
+                        setTimeout(ejecutarSiguientePaso, 50);
+                        return;
+                    }
+
+                    const item = utterancesToPlay[subIndex];
+                    subIndex++;
+
+                    const u = new SpeechSynthesisUtterance(item.text);
+                    u.voice = activeVoz;
+                    u.pitch = item.pitch;
+                    u.rate = item.rate;
+                    u.volume = item.volume;
+
+                    u.onstart = () => {
+                        emoji.classList.add('speaking-avatar');
+                        startVisualizer();
+                    };
+
+                    u.onend = () => {
+                        // Use timeout to break stack and prevent Chrome engine lockups
+                        setTimeout(reproducirSiguienteSub, 50);
+                    };
+
+                    u.onerror = () => {
+                        setTimeout(reproducirSiguienteSub, 50);
+                    };
+
+                    synth.speak(u);
+                }
+
+                reproducirSiguienteSub();
+            }
+        }
+
+        // PLAY ACTION TRIGGER
+        btnHablar.addEventListener('click', () => {
+            // Safety fallback: Load voices if the list is empty
+            if (vocesSelect.options.length === 0) {
+                cargarVoces();
+            }
+
+            detenerTodo();
+
+            let originalText = textoInput.value.trim();
+            if (originalText === '') return;
+
+            // Apply selected voice
+            if (vocesSelect.selectedOptions.length === 0) {
+                alert('No hay ninguna voz cargada en el sistema. Asegúrate de tener voces de síntesis de voz activas.');
+                return;
+            }
+            const vozSeleccionada = vocesSelect.selectedOptions[0].getAttribute('data-name');
+            const vozObjeto = vocesDisponibles.find(v => v.name === vozSeleccionada);
+            if (!vozObjeto) return;
+
+            // Store active parameters
+            activeVoz = vozObjeto;
+            activePitch = parseFloat(pitchInput.value);
+            activeRate = parseFloat(rateInput.value);
+            
+            const slang = jergaSelect.value;
+            activeEffect = efectoManualSelect.value;
+            const backgroundBeat = beatSelect.value;
+
+            // 1. Process regional slang modisms first
+            let procesado = aplicarJerga(originalText, slang);
+
+            // 2. Parse text into sequencer steps
+            activeSequence = parsearPausas(procesado);
+            currentSequenceIndex = 0;
+            sequencePlaying = true;
+
+            // 3. Play background music (Unified)
+            if (usarYtCheckbox.checked) {
+                const url = ytUrlInput.value.trim();
+                playMusic(url, true); // Play with ducking active
+            } 
+            else if (backgroundBeat !== 'none') {
+                SynthBeat.start(backgroundBeat);
+            }
+
+            // 4. Fire sequencer
+            ejecutarSiguientePaso();
+        });
+    </script>
+</body>
+
+</html>
